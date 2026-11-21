@@ -1,7 +1,31 @@
 import { useState } from "react";
 import { request } from "./api.js";
 
-function EntryForm({ children, path, toPayload, label, onSaved, onCancel }) {
+const indiaDateFormatter = new Intl.DateTimeFormat("en-IN", {
+  timeZone: "Asia/Kolkata",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function todayInIndia() {
+  const parts = indiaDateFormatter.formatToParts(new Date());
+  const { year, month, day } = Object.fromEntries(
+    parts.map(({ type, value }) => [type, value]),
+  );
+
+  return `${year}-${month}-${day}`;
+}
+
+function EntryForm({
+  children,
+  path,
+  method,
+  toPayload,
+  label,
+  onSaved,
+  onCancel,
+}) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -12,7 +36,7 @@ function EntryForm({ children, path, toPayload, label, onSaved, onCancel }) {
     setError("");
 
     try {
-      await request(path, toPayload(values));
+      await request(path, toPayload(values), method);
     } catch (error) {
       setError(error.message);
       return;
@@ -43,7 +67,7 @@ function EntryForm({ children, path, toPayload, label, onSaved, onCancel }) {
   );
 }
 
-export function RfqForm({ onSaved, onCancel }) {
+export function RfqForm({ rfq, onSaved, onCancel }) {
   function toPayload(values) {
     return {
       part_number: values.get("part_number").trim(),
@@ -55,33 +79,58 @@ export function RfqForm({ onSaved, onCancel }) {
 
   return (
     <EntryForm
-      path="/api/rfqs"
-      label="Create RFQ"
+      path={rfq ? `/api/rfqs/${rfq.id}` : "/api/rfqs"}
+      method={rfq ? "PUT" : "POST"}
+      label={rfq ? "Save RFQ" : "Create RFQ"}
       toPayload={toPayload}
       onSaved={onSaved}
       onCancel={onCancel}
     >
       <label className="wide">
         Part number
-        <input name="part_number" maxLength={120} required />
+        <input
+          name="part_number"
+          defaultValue={rfq?.part_number}
+          maxLength={120}
+          required
+        />
       </label>
       <label className="wide">
         Description
-        <textarea name="description" maxLength={1500} rows={3} required />
+        <textarea
+          name="description"
+          defaultValue={rfq?.description}
+          maxLength={1500}
+          rows={3}
+          required
+        />
       </label>
       <label>
         Quantity
-        <input name="quantity" type="number" min={1} max={1000000} required />
+        <input
+          name="quantity"
+          defaultValue={rfq?.quantity}
+          type="number"
+          min={1}
+          max={1000000}
+          required
+        />
       </label>
       <label>
         Needed by
-        <input name="needed_by" type="date" required />
+        <input
+          name="needed_by"
+          defaultValue={rfq?.needed_by}
+          type="date"
+          min={todayInIndia()}
+          required
+        />
       </label>
     </EntryForm>
   );
 }
 
-export function QuoteForm({ rfqId, onSaved, onCancel }) {
+export function QuoteForm({ rfqId, quote, onSaved, onCancel }) {
   function toPayload(values) {
     return {
       supplier_name: values.get("supplier_name").trim(),
@@ -93,7 +142,8 @@ export function QuoteForm({ rfqId, onSaved, onCancel }) {
 
   return (
     <EntryForm
-      path={`/api/rfqs/${rfqId}/quotes`}
+      path={`/api/rfqs/${rfqId}/quotes${quote ? `/${quote.id}` : ""}`}
+      method={quote ? "PUT" : "POST"}
       label="Save quote"
       toPayload={toPayload}
       onSaved={onSaved}
@@ -101,19 +151,44 @@ export function QuoteForm({ rfqId, onSaved, onCancel }) {
     >
       <label>
         Supplier name
-        <input name="supplier_name" maxLength={120} required />
+        <input
+          name="supplier_name"
+          defaultValue={quote?.supplier_name}
+          maxLength={120}
+          required
+        />
       </label>
       <label>
         Unit price (₹)
-        <input name="unit_price" type="number" min="0.01" step="0.01" required />
+        <input
+          name="unit_price"
+          defaultValue={quote?.unit_price}
+          type="number"
+          min="0.01"
+          step="0.01"
+          required
+        />
       </label>
       <label>
         Lead time (days)
-        <input name="lead_time_days" type="number" min={0} max={3650} required />
+        <input
+          name="lead_time_days"
+          defaultValue={quote?.lead_time_days}
+          type="number"
+          min={0}
+          max={3650}
+          required
+        />
       </label>
       <label>
         Valid until
-        <input name="valid_until" type="date" required />
+        <input
+          name="valid_until"
+          defaultValue={quote?.valid_until}
+          type="date"
+          min={todayInIndia()}
+          required
+        />
       </label>
     </EntryForm>
   );

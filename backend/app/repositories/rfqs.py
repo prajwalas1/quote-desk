@@ -93,3 +93,49 @@ def insert_quote(rfq_id, supplier_name, unit_price, lead_time_days, valid_until)
                 (rfq_id, supplier_name, unit_price, lead_time_days, valid_until),
             )
             return cursor.fetchone()
+
+
+def update_rfq(rfq_id, part_number, description, quantity, needed_by):
+    with open_connection() as connection:
+        return connection.execute(
+            """
+            UPDATE public.rfqs
+            SET part_number = %s, description = %s, quantity = %s, needed_by = %s
+            WHERE id = %s
+            """,
+            (part_number, description, quantity, needed_by, rfq_id),
+        ).rowcount == 1
+
+
+def delete_rfq(rfq_id):
+    with open_connection() as connection:
+        # Lock the parent before deleting its quotes to block concurrent FK inserts.
+        rfq = connection.execute(
+            "SELECT id FROM public.rfqs WHERE id = %s FOR UPDATE", (rfq_id,)
+        ).fetchone()
+        if rfq is None:
+            return False
+
+        connection.execute("DELETE FROM public.quotes WHERE rfq_id = %s", (rfq_id,))
+        connection.execute("DELETE FROM public.rfqs WHERE id = %s", (rfq_id,))
+        return True
+
+
+def update_quote(rfq_id, quote_id, supplier_name, unit_price, lead_time_days, valid_until):
+    with open_connection() as connection:
+        return connection.execute(
+            """
+            UPDATE public.quotes
+            SET supplier_name = %s, unit_price = %s, lead_time_days = %s, valid_until = %s
+            WHERE rfq_id = %s AND id = %s
+            """,
+            (supplier_name, unit_price, lead_time_days, valid_until, rfq_id, quote_id),
+        ).rowcount == 1
+
+
+def delete_quote(rfq_id, quote_id):
+    with open_connection() as connection:
+        return connection.execute(
+            "DELETE FROM public.quotes WHERE rfq_id = %s AND id = %s",
+            (rfq_id, quote_id),
+        ).rowcount == 1

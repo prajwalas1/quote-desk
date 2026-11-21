@@ -1,13 +1,13 @@
-export async function request(path, payload) {
-  const options = payload === undefined
-    ? {}
-    : {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      };
+export async function request(path, payload, method = payload === undefined ? "GET" : "POST") {
+  const options = { method };
+  if (payload !== undefined) {
+    options.headers = { "Content-Type": "application/json" };
+    options.body = JSON.stringify(payload);
+  }
 
-  const response = await fetch(path, options);
+  const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+  const response = await fetch(`${apiBase}${path}`, options);
+  if (response.status === 204) return null;
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -21,7 +21,7 @@ export async function request(path, payload) {
     throw new Error(
       typeof data?.detail === "string"
         ? data.detail
-        : "Could not reach the API. Check that FastAPI is running on port 8000.",
+        : "Could not complete the request. Please try again.",
     );
   }
 
